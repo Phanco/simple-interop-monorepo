@@ -1,0 +1,107 @@
+#!/bin/sh
+
+# Start two separate Anvil instances for cross-chain testing
+# Chain 1 (Source): Port 8545, Chain ID 31337
+# Chain 2 (Destination): Port 8546, Chain ID 31338
+
+HOME_PATH=$(pwd)
+PID_FILE=".anvil.pids"
+
+# Check if chains are already running
+if [ -f "$PID_FILE" ]; then
+    echo "⚠️  Anvil chains may already be running."
+    echo "Run './stop_local' first, or remove $PID_FILE if stale."
+    exit 1
+fi
+
+echo "Starting local blockchain nodes for cross-chain testing..."
+
+# Start Source Chain (Anvil 1) in background
+echo "Starting Source Chain (Chain ID: 31337, Port: 8545)..."
+anvil \
+  --port 8545 \
+  --chain-id 31337 \
+  --block-time 2 \
+  > ./logs/anvil-source.log 2>&1 &
+
+SOURCE_PID=$!
+echo "Source chain started (PID: $SOURCE_PID)"
+
+# Wait a moment for first instance to start
+sleep 2
+
+# Start Destination Chain (Anvil 2) in background
+echo "Starting Destination Chain (Chain ID: 31338, Port: 8546)..."
+anvil \
+  --port 8546 \
+  --chain-id 31338 \
+  --block-time 2 \
+  > ./logs/anvil-dest.log 2>&1 &
+
+DEST_PID=$!
+echo "Destination chain started (PID: $DEST_PID)"
+
+# Save PIDs to file
+echo "$SOURCE_PID $DEST_PID" > "$PID_FILE"
+echo "PIDs saved to $PID_FILE"
+
+# Wait for both to be ready
+echo "Waiting 10 seconds for Anvil to be ready."
+sleep 10
+
+echo ""
+echo "✅ Local chains are running!"
+echo ""
+echo "Source Chain:"
+echo "  RPC: http://localhost:8545"
+echo "  Chain ID: 31337"
+echo "  Log: ./logs/anvil-source.log"
+echo ""
+echo "Destination Chain:"
+echo "  RPC: http://localhost:8546"
+echo "  Chain ID: 31338"
+echo "  Log: ./logs/anvil-dest.log"
+echo ""
+
+# Deploy contracts
+echo "📦 Deploying contracts..."
+echo ""
+
+cd $HOME_PATH/contract
+
+# Deploy MessageSender to source chain
+echo "Deploying MessageSender to Source Chain (port 8545)..."
+forge script script/MessageSender.s.sol:DeployMessageSender \
+  --rpc-url http://localhost:8545 \
+  --broadcast
+
+# Deploy MessageReceiver to destination chain
+echo "Deploying MessageReceiver to Destination Chain (port 8546)..."
+forge script script/MessageReceiver.s.sol:DeployMessageReceiver \
+  --rpc-url http://localhost:8546 \
+  --broadcast
+
+# Starting DB in Docker
+docker compose up -d
+
+echo "Waiting 10 seconds for DB to be ready."
+sleep 10
+
+cd $HOME_PATH/validator
+
+echo "Yarn Install ..."
+yarn
+
+echo "Migrating DB"
+DB_PORT=5432 yarn db:migrate
+DB_PORT=5433 yarn db:migrate
+DB_PORT=5434 yarn db:migrate
+
+echo "Starting pm2"
+pm2 start ecosystem.config.js
+
+echo ""
+echo "✅ Deployment complete!"
+echo ""
+echo "To stop both chains: ./stop_local"
+echo "To view logs: tail -f ./logs/anvil-source.log or tail -f ./logs/anvil-dest.log"

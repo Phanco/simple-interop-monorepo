@@ -1,0 +1,38 @@
+name: simple-interop
+services:
+  postgres0:
+    image: postgres
+    restart: always
+    ports:
+      - '5432:5432'
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    environment:
+      POSTGRES_USER: simple-interop
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: simple-interop
+    volumes:
+      - ./postgres0:/var/lib/postgresql/data
+  postgres1:
+    image: postgres
+    restart: always
+    ports:
+      - '5433:5432'
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    environment:
+      POSTGRES_USER: simple-interop
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: simple-interop
+    volumes:
+      - ./postgres1:/var/lib/postgresql/data
+  postgres2:
+    image: postgres
+    restart: always
+    ports:
+      - '5434:5432'
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]
+    environment:
+      POSTGRES_USER: simple-interop
+      POSTGRES_PASSWORD: let-me-in
+      POSTGRES_DB: simple-interop
+    volumes:
+      - ./postgres2:/var/lib/postgresql/data

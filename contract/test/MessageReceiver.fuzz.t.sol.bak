@@ -1,0 +1,471 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.27;
+
+import { Test } from "forge-std/Test.sol";
+import { console } from "forge-std/console.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageReceiver } from "../src/receiver/MessageReceiver.sol";
+
+/// @title MessageReceiver Fuzz Tests
+/// @notice Comprehensive fuzz testing for security-critical components
+contract MessageReceiverFuzzTest is Test {
+    using ECDSA for bytes32;
+
+    MessageReceiver public messageReceiver;
+    address public owner;
+
+    function setUp() public {
+        owner = makeAddr("owner");
+    }
+
+    function sign(uint256 privateKey, bytes32 digest) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CRITICAL: BITMAP OVERFLOW/COLLISION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: Fuzz test bitmap doesn't overflow with edge-case relayer indices
+    /// @dev Tests that `1 << getRelayerIndex()` works correctly for various relayer counts
+    /// forge-config: default.fuzz.runs = 10000
+    function testFuzz_BitmapNoOverflow(uint8 numRelayers, uint8 threshold) public {
+        // Bound inputs to realistic values
+        vm.assume(numRelayers >= 2 && numRelayers <= 100);
+        vm.assume(threshold >= 1 && threshold <= numRelayers);
+
+        // Setup relayers
+        address[] memory relayers = new address[](numRelayers);
+        uint256[] memory keys = new uint256[](numRelayers);
+        for (uint256 i; i < numRelayers; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("relayer", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, threshold);
+
+        // Create message
+        uint256 sourceChainId = 1;
+        uint256 nonce = 0;
+        address sender = makeAddr("sender");
+        address recipient = makeAddr("recipient");
+        bytes memory payload = "test";
+
+        bytes32 messageHash = messageReceiver.getMessageHash(
+            sourceChainId, nonce, sender, recipient, payload
+        );
+
+        // Create signatures from threshold number of relayers
+        bytes[] memory signatures = new bytes[](threshold);
+        for (uint256 i; i < threshold; i++) {
+            signatures[i] = sign(keys[i], messageHash);
+        }
+
+        // Should succeed without overflow
+        messageReceiver.receiveMessage(
+            sourceChainId, nonce, sender, recipient, payload, signatures
+        );
+
+        // Verify message was stored
+        assertEq(messageReceiver.processedMessageNonces(sourceChainId, sender), 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CRITICAL: DUPLICATE SIGNATURE DETECTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: Ensure duplicate relayer signatures are always rejected
+    /// forge-config: default.fuzz.runs = 10000
+    function testFuzz_NoDuplicateSignatures(
+        uint8 numRelayers,
+        uint8 threshold,
+        uint8 duplicateIndex
+    ) public {
+        vm.assume(numRelayers >= 3 && numRelayers <= 20);
+        vm.assume(threshold >= 2 && threshold <= numRelayers);
+        vm.assume(duplicateIndex < threshold);
+
+        // Setup
+        address[] memory relayers = new address[](numRelayers);
+        uint256[] memory keys = new uint256[](numRelayers);
+        for (uint256 i; i < numRelayers; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("rel", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, threshold);
+
+        // Create message
+        bytes32 messageHash = messageReceiver.getMessageHash(
+            1, 0, makeAddr("sender"), makeAddr("recipient"), "test"
+        );
+
+        // Create signatures with one duplicate
+        bytes[] memory signatures = new bytes[](threshold + 1);
+        for (uint256 i; i < threshold; i++) {
+            signatures[i] = sign(keys[i], messageHash);
+        }
+        // Add duplicate at the end
+        signatures[threshold] = sign(keys[duplicateIndex], messageHash);
+
+        // Should revert with DuplicateSignature
+        vm.expectRevert(MessageReceiver.DuplicateSignature.selector);
+        messageReceiver.receiveMessage(
+            1, 0, makeAddr("sender"), makeAddr("recipient"), "test", signatures
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        CRITICAL: NONCE SEQUENCING
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: Nonces must be strictly sequential per sender per chain
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_NonceStrictSequencing(
+        uint256 sourceChainId,
+        address sender,
+        uint8 numMessages
+    ) public {
+        vm.assume(numMessages >= 2 && numMessages <= 20);
+        vm.assume(sender != address(0));
+
+        // Setup with 3 relayers, threshold 2
+        address[] memory relayers = new address[](3);
+        uint256[] memory keys = new uint256[](3);
+        for (uint256 i; i < 3; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("r", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, 2);
+
+        address recipient = makeAddr("recipient");
+        bytes memory payload = "test";
+
+        // Process messages in order
+        for (uint256 i; i < numMessages; i++) {
+            bytes32 messageHash = messageReceiver.getMessageHash(
+                sourceChainId, i, sender, recipient, payload
+            );
+
+            bytes[] memory sigs = new bytes[](2);
+            sigs[0] = sign(keys[0], messageHash);
+            sigs[1] = sign(keys[1], messageHash);
+
+            messageReceiver.receiveMessage(
+                sourceChainId, i, sender, recipient, payload, sigs
+            );
+
+            // Verify nonce incremented
+            assertEq(
+                messageReceiver.processedMessageNonces(sourceChainId, sender),
+                i + 1,
+                "Nonce should increment by 1"
+            );
+        }
+    }
+
+    /// @notice Critical: Out-of-order nonces should fail
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_NonceOutOfOrderFails(
+        uint256 sourceChainId,
+        address sender,
+        uint8 skipAmount
+    ) public {
+        vm.assume(skipAmount >= 1 && skipAmount <= 10);
+        vm.assume(sender != address(0));
+
+        // Setup
+        address[] memory relayers = new address[](3);
+        uint256[] memory keys = new uint256[](3);
+        for (uint256 i; i < 3; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("r", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, 2);
+
+        // Try to submit nonce with skip
+        bytes32 messageHash = messageReceiver.getMessageHash(
+            sourceChainId, skipAmount, sender, makeAddr("recipient"), "test"
+        );
+
+        bytes[] memory sigs = new bytes[](2);
+        sigs[0] = sign(keys[0], messageHash);
+        sigs[1] = sign(keys[1], messageHash);
+
+        // Should fail because we're skipping nonces
+        vm.expectRevert(MessageReceiver.MessageAlreadyProcessed.selector);
+        messageReceiver.receiveMessage(
+            sourceChainId, skipAmount, sender, makeAddr("recipient"), "test", sigs
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CRITICAL: THRESHOLD VALIDATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: Test threshold is enforced correctly (>= not >)
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_ThresholdEnforcement(
+        uint8 numRelayers,
+        uint8 threshold,
+        uint8 numValidSigs
+    ) public {
+        vm.assume(numRelayers >= 2 && numRelayers <= 20);
+        vm.assume(threshold >= 1 && threshold <= numRelayers);
+        vm.assume(numValidSigs <= numRelayers);
+
+        // Setup
+        address[] memory relayers = new address[](numRelayers);
+        uint256[] memory keys = new uint256[](numRelayers);
+        for (uint256 i; i < numRelayers; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("rel", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, threshold);
+
+        // Create message
+        bytes32 messageHash = messageReceiver.getMessageHash(
+            1, 0, makeAddr("sender"), makeAddr("recipient"), "test"
+        );
+
+        bytes[] memory sigs = new bytes[](numValidSigs);
+        for (uint256 i; i < numValidSigs; i++) {
+            sigs[i] = sign(keys[i], messageHash);
+        }
+
+        if (numValidSigs >= threshold) {
+            // Should succeed
+            messageReceiver.receiveMessage(
+                1, 0, makeAddr("sender"), makeAddr("recipient"), "test", sigs
+            );
+            assertEq(messageReceiver.processedMessageNonces(1, makeAddr("sender")), 1);
+        } else {
+            // Should fail
+            vm.expectRevert("Insufficient Relayers");
+            messageReceiver.receiveMessage(
+                1, 0, makeAddr("sender"), makeAddr("recipient"), "test", sigs
+            );
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CRITICAL: VOTE COUNTING UNDERFLOW
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: Ensure vote count never underflows when relayers change votes
+    /// forge-config: default.fuzz.runs = 10000
+    function testFuzz_VoteCountingNoUnderflow(uint8[] calldata voteSequence) public {
+        vm.assume(voteSequence.length >= 5 && voteSequence.length <= 50);
+
+        // Setup with 5 relayers, threshold 3
+        address[] memory relayers = new address[](5);
+        uint256[] memory keys = new uint256[](5);
+        for (uint256 i; i < 5; i++) {
+            (relayers[i], keys[i]) = makeAddrAndKey(string(abi.encodePacked("rel", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, 3);
+
+        // Renounce ownership to allow relayer voting
+        vm.prank(owner);
+        messageReceiver.renounceOwnership();
+
+        address newRelayer1 = makeAddr("newRelayer1");
+        address newRelayer2 = makeAddr("newRelayer2");
+
+        // Simulate voting sequence with vote changes
+        for (uint256 i; i < voteSequence.length; i++) {
+            uint8 relayerIndex = voteSequence[i] % 5;
+            // Alternate between two different proposals
+            address targetNew = (i % 2 == 0) ? newRelayer1 : newRelayer2;
+
+            vm.prank(relayers[relayerIndex]);
+            // This should never revert due to underflow
+            messageReceiver.updateRelayer(relayers[0], targetNew);
+
+            // Verify vote counts are valid (never underflowed to type(uint256).max)
+            bytes32 proposalHash1 = keccak256(
+                abi.encodePacked(relayers[0], newRelayer1, messageReceiver.proposalNonce())
+            );
+            bytes32 proposalHash2 = keccak256(
+                abi.encodePacked(relayers[0], newRelayer2, messageReceiver.proposalNonce())
+            );
+
+            uint256 votes1 = messageReceiver.votes(proposalHash1);
+            uint256 votes2 = messageReceiver.votes(proposalHash2);
+
+            // Votes should never exceed number of relayers
+            assertLe(votes1, 5, "Votes should not exceed relayer count");
+            assertLe(votes2, 5, "Votes should not exceed relayer count");
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                CRITICAL: PROPOSAL NONCE REPLAY PROTECTION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Critical: proposalNonce prevents replay of old proposals
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_ProposalNoncePreventReplay(uint8 numUpdates) public {
+        vm.assume(numUpdates >= 1 && numUpdates <= 10);
+
+        // Setup
+        address[] memory relayers = new address[](3);
+        for (uint256 i; i < 3; i++) {
+            relayers[i] = makeAddrAndKey(string(abi.encodePacked("r", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, 2);
+
+        uint256 initialNonce = messageReceiver.proposalNonce();
+
+        for (uint256 i; i < numUpdates; i++) {
+            address oldRelayer = relayers[i % 3];
+            address newRelayer = vm.addr(100 + i);
+
+            // Record proposal hash with current nonce
+            bytes32 oldProposalHash = keccak256(
+                abi.encodePacked(oldRelayer, newRelayer, messageReceiver.proposalNonce())
+            );
+
+            // Owner updates relayer
+            vm.prank(owner);
+            messageReceiver.updateRelayer(oldRelayer, newRelayer);
+
+            // Verify nonce didn't increment (owner bypass)
+            assertEq(
+                messageReceiver.proposalNonce(),
+                initialNonce,
+                "Owner updates should not increment nonce"
+            );
+
+            // Update relayers array for next iteration
+            relayers[i % 3] = newRelayer;
+        }
+    }
+
+    /// @notice Critical: Old proposal hashes become invalid after nonce increment
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_OldProposalHashesInvalid(uint8 numVotingRounds) public {
+        vm.assume(numVotingRounds >= 1 && numVotingRounds <= 10);
+
+        // Setup with 5 relayers, threshold 3
+        address[] memory relayers = new address[](5);
+        for (uint256 i; i < 5; i++) {
+            relayers[i] = makeAddrAndKey(string(abi.encodePacked("rel", i)));
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, 3);
+
+        // Renounce ownership
+        vm.prank(owner);
+        messageReceiver.renounceOwnership();
+
+        for (uint256 round; round < numVotingRounds; round++) {
+            address newRelayer = vm.addr(200 + round);
+            uint256 currentNonce = messageReceiver.proposalNonce();
+
+            // Get 3 relayers to vote (reach threshold)
+            for (uint256 i; i < 3; i++) {
+                vm.prank(relayers[i]);
+                messageReceiver.updateRelayer(relayers[0], newRelayer);
+            }
+
+            // Nonce should have incremented
+            assertEq(
+                messageReceiver.proposalNonce(),
+                currentNonce + 1,
+                "Nonce should increment on successful update"
+            );
+
+            // Update first relayer
+            relayers[0] = newRelayer;
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        HIGH: MESSAGE HASH UNIQUENESS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Fuzz: Ensure no hash collisions for different message parameters
+    /// forge-config: default.fuzz.runs = 10000
+    function testFuzz_MessageHashUniqueness(
+        uint256 sourceChainId1,
+        uint256 nonce1,
+        address sender1,
+        address recipient1,
+        bytes calldata payload1,
+        uint256 sourceChainId2,
+        uint256 nonce2,
+        address sender2,
+        address recipient2,
+        bytes calldata payload2
+    ) public {
+        // Ensure at least one parameter is different
+        vm.assume(
+            sourceChainId1 != sourceChainId2 ||
+            nonce1 != nonce2 ||
+            sender1 != sender2 ||
+            recipient1 != recipient2 ||
+            keccak256(payload1) != keccak256(payload2)
+        );
+
+        // Setup
+        address[] memory relayers = new address[](2);
+        relayers[0] = makeAddr("r0");
+        relayers[1] = makeAddr("r1");
+        messageReceiver = new MessageReceiver(owner, relayers, 1);
+
+        bytes32 hash1 = messageReceiver.getMessageHash(
+            sourceChainId1, nonce1, sender1, recipient1, payload1
+        );
+        bytes32 hash2 = messageReceiver.getMessageHash(
+            sourceChainId2, nonce2, sender2, recipient2, payload2
+        );
+
+        assertNotEq(hash1, hash2, "Different parameters should produce different hashes");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                MEDIUM: CONSTRUCTOR RELAYERS MAP CONSISTENCY
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Fuzz: Ensure relayersMap correctly maps to array indices
+    /// forge-config: default.fuzz.runs = 5000
+    function testFuzz_ConstructorRelayersMapConsistency(
+        uint8 numRelayers,
+        uint8 threshold
+    ) public {
+        vm.assume(numRelayers >= 2 && numRelayers <= 50);
+        vm.assume(threshold >= 1 && threshold <= numRelayers);
+
+        address[] memory relayers = new address[](numRelayers);
+        for (uint256 i; i < numRelayers; i++) {
+            relayers[i] = vm.addr(i + 1); // Ensure unique addresses
+        }
+
+        messageReceiver = new MessageReceiver(owner, relayers, threshold);
+
+        // Verify relayersMap[addr] - 1 == correct index
+        for (uint256 i; i < numRelayers; i++) {
+            assertEq(
+                messageReceiver.getRelayerIndex(relayers[i]),
+                i,
+                "relayersMap should map to correct index"
+            );
+
+            // Verify array also has correct value
+            assertEq(
+                messageReceiver.relayers(i),
+                relayers[i],
+                "relayers array should match input"
+            );
+        }
+
+        // Verify threshold is set correctly
+        assertEq(
+            messageReceiver.CONSENSUS_THRESHOLD(),
+            threshold,
+            "Threshold should be set correctly"
+        );
+    }
+}

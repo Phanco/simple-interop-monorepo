@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Stop both Anvil instances by reading PIDs from file
+
+HOME_PATH=$(pwd)
+PID_FILE=".anvil.pids"
+
+# Check if PID file exists
+if [ ! -f "$PID_FILE" ]; then
+    echo "[ERROR] No running Anvil chains found."
+    echo "PID file '$PID_FILE' does not exist."
+    exit 1
+fi
+
+# Read PIDs from file
+read SOURCE_PID DEST_PID < "$PID_FILE"
+
+echo "Stopping local blockchain nodes..."
+echo "Source Chain PID: $SOURCE_PID"
+echo "Destination Chain PID: $DEST_PID"
+
+# Kill source chain
+if kill -0 "$SOURCE_PID" 2>/dev/null; then
+    kill "$SOURCE_PID"
+    echo "[OK] Stopped Source Chain (PID: $SOURCE_PID)"
+else
+    echo "[WARN] Source Chain (PID: $SOURCE_PID) not running"
+fi
+
+# Kill destination chain
+if kill -0 "$DEST_PID" 2>/dev/null; then
+    kill "$DEST_PID"
+    echo "[OK] Stopped Destination Chain (PID: $DEST_PID)"
+else
+    echo "[WARN] Destination Chain (PID: $DEST_PID) not running"
+fi
+
+# Remove PID file
+rm -f "$PID_FILE"
+echo ""
+echo "[OK] All chains stopped and PID file removed."
+
+# Docker compose down
+docker compose down
+
+# Removing Postgres Data
+rm -rf postgres0
+rm -rf postgres1
+rm -rf postgres2
+
+cd $HOME_PATH/validator
+pm2 stop ecosystem.config.js

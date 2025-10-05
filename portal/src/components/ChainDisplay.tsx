@@ -1,0 +1,42 @@
+"use client";
+
+import { ArrowRight } from "lucide-react";
+
+interface ChainDisplayProps {
+  sourceChain: string;
+  destinationChain: string;
+}
+
+const ChainDisplay = ({ sourceChain, destinationChain }: ChainDisplayProps) => {
+  return (
+    <div className="flex items-center justify-center gap-6 mb-8">
+      <div className="flex flex-col items-center">
+        <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center shadow-glow mb-3">
+          <div className="w-16 h-16 rounded-full bg-card flex items-center justify-center">
+            <span className="text-2xl font-bold text-primary">E</span>
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">Source Chain</p>
+          <p className="font-semibold text-foreground">{sourceChain}</p>
+        </div>
+      </div>
+
+      <ArrowRight className="w-8 h-8 text-primary animate-pulse" />
+
+      <div className="flex flex-col items-center">
+        <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center shadow-glow mb-3">
+          <div className="w-16 h-16 rounded-full bg-card flex items-center justify-center">
+            <span className="text-2xl font-bold text-secondary">O</span>
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground">Destination Chain</p>
+          <p className="font-semibold text-foreground">{destinationChain}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChainDisplay;
