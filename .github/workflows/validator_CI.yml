@@ -5,12 +5,16 @@ jobs:
   build:
     name: test
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: ./validator
     steps:
       - uses: actions/checkout@v3
       - name: Set Node.js 22.x
         uses: actions/setup-node@v3
         with:
           node-version: 22.x
-      - run: yarn install --frozen-lockfile
-      - run: yarn build
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build validator
+        run: yarn build
