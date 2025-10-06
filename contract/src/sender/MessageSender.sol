@@ -32,7 +32,8 @@ contract MessageSender {
     }
 
     error InvalidDestinationChain();
-    error InvalidRecipient();
+
     error EmptyPayload();
+
     error InvalidNonce();
 }

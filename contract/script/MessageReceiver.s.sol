@@ -27,7 +27,7 @@ contract DeployMessageReceiver is Script {
 
         messageReceiver = new MessageReceiver(owner, relayers, 2);
         assert(messageReceiver.owner() == owner);
-        ensureRelayers(relayers, messageReceiver);
+        ensureRelayers(relayers);
         assert(messageReceiver.CONSENSUS_THRESHOLD() == threshold);
 
         vm.stopBroadcast();
@@ -45,7 +45,7 @@ contract DeployMessageReceiver is Script {
         }
     }
 
-    function ensureRelayers(address[] memory expectRelayers, MessageReceiver messageReceiver) internal view {
+    function ensureRelayers(address[] memory expectRelayers) internal view {
         assert(expectRelayers.length == messageReceiver.relayersLength());
         for (uint256 i; i < expectRelayers.length;) {
             assert(expectRelayers[i] == messageReceiver.relayers(i));

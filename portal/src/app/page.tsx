@@ -2,6 +2,7 @@ import { Network } from "lucide-react";
 import ChainDisplay from "@/components/ChainDisplay";
 import MessageForm from "@/components/MessageForm";
 import RecentMessages from "@/components/RecentMessages";
+import { CHAIN_NAMES } from "@/lib/contracts";
 
 export default function Home() {
   return (
@@ -9,12 +10,7 @@ export default function Home() {
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-12 space-y-4">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 rounded-xl gradient-primary shadow-glow">
-              <Network className="w-8 h-8 text-background" />
-            </div>
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text">
             EVM Interoperability Portal
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -24,8 +20,10 @@ export default function Home() {
 
         {/* Chain Display */}
         <ChainDisplay
-          sourceChain="Ethereum Mainnet"
-          destinationChain="Optimism"
+          sourceChain={CHAIN_NAMES[31337]}
+          destinationChain={CHAIN_NAMES[31338]}
+          sourceChainId={31337}
+          destinationChainId={31338}
         />
 
         {/* Message Form Card */}
@@ -36,11 +34,6 @@ export default function Home() {
             </h2>
             <MessageForm />
           </div>
-        </div>
-
-        {/* Recent Messages */}
-        <div className="max-w-5xl mx-auto">
-          <RecentMessages />
         </div>
       </div>
     </div>

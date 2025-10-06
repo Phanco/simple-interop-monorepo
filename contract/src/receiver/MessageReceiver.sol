@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { console } from "forge-std/console.sol";
 
 contract MessageReceiver is Ownable {
     using ECDSA for bytes32;
@@ -80,10 +79,10 @@ contract MessageReceiver is Ownable {
                 i++;
             }
         }
+
         require(validSignatures >= CONSENSUS_THRESHOLD, "Insufficient Relayers");
 
         processedMessageNonces[sourceChainId][sender]++;
-
         messages.push(
             Message({
                 sourceChainId: sourceChainId,
@@ -116,7 +115,6 @@ contract MessageReceiver is Ownable {
     ) public view returns (bytes32) {
         return keccak256(abi.encodePacked(sourceChainId, block.chainid, nonce, sender, recipient, payload))
             .toEthSignedMessageHash();
-        //        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
     }
 
     function relayersLength() public view returns (uint256) {
@@ -136,7 +134,6 @@ contract MessageReceiver is Ownable {
             _replaceRelayer(oldRelayer, newRelayer);
         } else {
             bytes32 proposal = keccak256(abi.encodePacked(oldRelayer, newRelayer, proposalNonce));
-            console.logBytes32(proposal);
 
             // Remove old vote
             if (currentProposals[msg.sender] != bytes32(0)) {
@@ -168,16 +165,11 @@ contract MessageReceiver is Ownable {
 
     event RelayerUpdated(address oldRelayer, address newRelayer);
 
-    error InvalidRelayer();
-    error InvalidSignature();
     error MessageAlreadyProcessed();
-    error InvalidRecipient();
 
     error Unauthorized();
 
     error NotRelayer();
-
-    error AlreadyNominated();
 
     error DuplicateSignature();
 }

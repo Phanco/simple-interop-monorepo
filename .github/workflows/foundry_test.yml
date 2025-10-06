@@ -1,4 +1,4 @@
-name: CI
+name: Test Foundry Contracts
 
 on:
   push:

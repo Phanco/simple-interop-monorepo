@@ -61,6 +61,14 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
       },
+      senderChainHash: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      receiverChainHash: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,

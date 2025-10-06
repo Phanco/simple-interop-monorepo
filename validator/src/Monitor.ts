@@ -72,6 +72,7 @@ class Monitor {
       globalNonce: parsedEvent.args.globalNonce,
       signature: signature,
       status: 0,
+      senderChainHash: event.transactionHash,
     });
 
     console.log("Message Created with signature:", signature);

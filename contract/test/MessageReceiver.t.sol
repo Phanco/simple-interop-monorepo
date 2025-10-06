@@ -24,9 +24,6 @@ contract MessageReceiverTest is Test {
         (relayers[1], relayerKeys[1]) = makeAddrAndKey("relayer1");
         (relayers[2], relayerKeys[2]) = makeAddrAndKey("relayer2");
 
-        console.log("relayer0", relayers[0]);
-        console.log("relayer1", relayers[1]);
-        console.log("relayer2", relayers[2]);
         messageReceiver = new MessageReceiver(owner, relayers, 2);
     }
 
@@ -35,30 +32,12 @@ contract MessageReceiverTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function test_receiveMessage_success() public {
-        uint256 sourceChainId = 123;
-        uint256 nonce = 0;
-        address sender = makeAddr("sender");
-        address recipient = makeAddr("recipient");
-        bytes memory payload = "haha";
-        bytes[] memory signatures = new bytes[](2);
-
-        bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
-        signatures[0] = sign(relayerKeys[0], digest);
-        signatures[1] = sign(relayerKeys[1], digest);
-
-        vm.expectEmit();
-        emit MessageReceiver.MessageReceived(sourceChainId, nonce, sender, recipient, payload);
-
-        messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
-    }
-
     function test_receiveMessage_OversuppliedSignatures() public {
         uint256 sourceChainId = 123;
         uint256 nonce = 0;
         address sender = makeAddr("sender");
         address recipient = makeAddr("recipient");
-        bytes memory payload = "haha";
+        bytes memory payload = "foobar";
         bytes[] memory signatures = new bytes[](3);
 
         bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
@@ -77,7 +56,7 @@ contract MessageReceiverTest is Test {
         uint256 nonce = 0;
         address sender = makeAddr("sender");
         address recipient = makeAddr("recipient");
-        bytes memory payload = "haha";
+        bytes memory payload = "foobar";
         bytes[] memory signatures = new bytes[](1);
 
         bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
@@ -87,9 +66,60 @@ contract MessageReceiverTest is Test {
         messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
     }
 
-    function testRevert_receiveMessage_MessageReplayed() public { }
+    function testRevert_receiveMessage_DuplicateRelayerInSignature() public {
+        uint256 sourceChainId = 123;
+        uint256 nonce = 0;
+        address sender = makeAddr("sender");
+        address recipient = makeAddr("recipient");
+        bytes memory payload = "foobar";
+        bytes[] memory signatures = new bytes[](2);
 
-    function testRevert_receiveMessage_DuplicateRelayerInSignature() public { }
+        bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
+        signatures[0] = sign(relayerKeys[0], digest);
+        signatures[1] = sign(relayerKeys[0], digest);
+
+        vm.expectRevert();
+        messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
+    }
+
+    function test_receiveMessage_success() public {
+        uint256 sourceChainId = 123;
+        uint256 nonce = 0;
+        address sender = makeAddr("sender");
+        address recipient = makeAddr("recipient");
+        bytes memory payload = "foobar";
+        bytes[] memory signatures = new bytes[](2);
+
+        bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
+        signatures[0] = sign(relayerKeys[0], digest);
+        signatures[1] = sign(relayerKeys[1], digest);
+
+        vm.expectEmit();
+        emit MessageReceiver.MessageReceived(sourceChainId, nonce, sender, recipient, payload);
+
+        messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
+    }
+
+    function testRevert_receiveMessage_MessageReplayed() public {
+        uint256 sourceChainId = 123;
+        uint256 nonce = 0;
+        address sender = makeAddr("sender");
+        address recipient = makeAddr("recipient");
+        bytes memory payload = "foobar";
+        bytes[] memory signatures = new bytes[](2);
+
+        bytes32 digest = messageReceiver.getMessageHash(sourceChainId, nonce, sender, recipient, payload);
+        signatures[0] = sign(relayerKeys[0], digest);
+        signatures[1] = sign(relayerKeys[1], digest);
+
+        vm.expectEmit();
+        emit MessageReceiver.MessageReceived(sourceChainId, nonce, sender, recipient, payload);
+
+        messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
+
+        vm.expectRevert();
+        messageReceiver.receiveMessage(sourceChainId, nonce, sender, recipient, payload, signatures);
+    }
 
     function testRevert_getRelayerIndex_NotRelayer() public {
         address nobody = makeAddr("nobody");
@@ -155,12 +185,13 @@ contract MessageReceiverTest is Test {
         messageReceiver.renounceOwnership();
         vm.stopPrank();
 
+        // First Vote
         vm.startPrank(relayers[0]);
         messageReceiver.updateRelayer(relayers[2], newRelayer);
         vm.stopPrank();
 
+        // Second Vote - Threshold Reached
         vm.startPrank(relayers[1]);
-
         vm.expectEmit();
         emit MessageReceiver.RelayerUpdated(relayers[2], newRelayer);
 
@@ -171,6 +202,31 @@ contract MessageReceiverTest is Test {
 
         vm.expectRevert();
         messageReceiver.getRelayerIndex(relayers[2]);
+    }
+
+    function test_updateRelayer_RelayerUpdateRelayerOwnerIsZero_ReplaceOldVote() public {
+        address newRelayer = makeAddr("newRelayer");
+        address newRelayer1 = makeAddr("newRelayer1");
+
+        // Owner revoke Ownership
+        vm.startPrank(owner);
+        messageReceiver.renounceOwnership();
+        vm.stopPrank();
+
+        uint256 currentProposalNonce = messageReceiver.proposalNonce();
+
+        vm.startPrank(relayers[0]);
+        bytes32 oldProposal = keccak256(abi.encodePacked(relayers[2], newRelayer, currentProposalNonce));
+        messageReceiver.updateRelayer(relayers[2], newRelayer);
+        assertEq(messageReceiver.currentProposals(relayers[0]), oldProposal);
+        assertEq(messageReceiver.votes(oldProposal), 1);
+
+        bytes32 newProposal = keccak256(abi.encodePacked(relayers[2], newRelayer1, currentProposalNonce));
+        messageReceiver.updateRelayer(relayers[2], newRelayer1);
+        assertEq(messageReceiver.currentProposals(relayers[0]), newProposal);
+        assertEq(messageReceiver.votes(oldProposal), 0);
+        assertEq(messageReceiver.votes(newProposal), 1);
+        vm.stopPrank();
     }
 
     // updateRelayer - Relayer replaces with current relayer (Failed)

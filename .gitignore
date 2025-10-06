@@ -4,3 +4,7 @@
 postgres0
 postgres1
 postgres2
+
+# Ignore log files but keep .keep
+logs/*
+!logs/.keep

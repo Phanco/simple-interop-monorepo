@@ -6,7 +6,6 @@ import {
   Unique,
   ForeignKey,
   BelongsTo,
-  DataType,
 } from "sequelize-typescript";
 import Network from "./Network.model";
 
@@ -54,6 +53,12 @@ class Message extends Model {
   @AllowNull(false)
   @Column
   declare signature: string;
+
+  @Column
+  declare senderChainHash: string;
+
+  @Column
+  declare receiverChainHash: string;
 
   @AllowNull(false)
   @Column

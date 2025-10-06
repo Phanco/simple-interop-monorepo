@@ -97,6 +97,7 @@ class Broadcaster {
           message.payload,
           signatures.slice(0, this.requiredSignatures),
         );
+        message.receiverChainHash = tx.hash;
         message.status = 1;
         await message.save();
 
