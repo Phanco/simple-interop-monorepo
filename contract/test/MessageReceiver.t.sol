@@ -134,6 +134,10 @@ contract MessageReceiverTest is Test {
         assertEq(messageReceiver.getRelayerIndex(relayers[2]), 2);
     }
 
+    function test_relayersLength() public view {
+        assertEq(messageReceiver.relayersLength(), 3);
+    }
+
     // updateRelayer - Nobody updates relayer (Failed)
     function testRevert_updateRelayer_NotRelayer() public {
         address nobody = makeAddr("nobody");

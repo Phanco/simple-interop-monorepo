@@ -5,7 +5,11 @@ import Link from "next/link";
 import { CheckCircle, Copy, Home, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
-import { RELAYERS, EXPLORERS } from "@/lib/contracts";
+import {
+  RELAYERS,
+  getSenderExplorer,
+  getReceiverExplorer,
+} from "@/lib/contracts";
 
 interface TransactionPageProps {
   params: Promise<{
@@ -109,7 +113,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(`${EXPLORERS[31337]}${txid}`, "_blank")}
+                      onClick={() => window.open(`${getSenderExplorer()}${txid}`, "_blank")}
                       className="flex-shrink-0"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -172,23 +176,6 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                       Transaction Submitted in Receiver Chain
                     </span>
                   </div>
-                  {receiverChainHash && (
-                    <div className="mt-3 ml-8">
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs font-mono text-green-500 break-all">
-                          {receiverChainHash}
-                        </code>
-                        <a
-                          href={`${EXPLORERS[31338]}${receiverChainHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-500 hover:text-green-600 flex-shrink-0"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {receiverChainHash && <div>
                   <label className="text-sm font-medium text-muted-foreground mb-2 block">
@@ -214,7 +201,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => window.open(`${EXPLORERS[31338]}${receiverChainHash}`, "_blank")}
+                        onClick={() => window.open(`${getReceiverExplorer()}${receiverChainHash}`, "_blank")}
                         className="flex-shrink-0"
                       >
                         <ExternalLink className="w-4 h-4" />

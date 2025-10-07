@@ -10,7 +10,12 @@ import { Send, Wallet, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useWeb3 } from "@/contexts/Web3Context";
 import { ethers } from "ethers";
-import { RPC_URLS } from "@/lib/contracts";
+import {
+  getSenderChainId,
+  getReceiverChainId,
+  getSenderRpcUrl,
+  getSenderChainName
+} from "@/lib/contracts";
 
 const MessageForm = () => {
   const [message, setMessage] = useState("");
@@ -20,8 +25,8 @@ const MessageForm = () => {
   const router = useRouter();
   const { account, contract, connectWallet, isConnecting, chainId } = useWeb3();
 
-  // Fixed destination chain for local setup
-  const DESTINATION_CHAIN_ID = 31338;
+  const SENDER_CHAIN_ID = getSenderChainId();
+  const DESTINATION_CHAIN_ID = getReceiverChainId();
 
   const isValidAddress = (address: string): boolean => {
     try {
@@ -34,10 +39,12 @@ const MessageForm = () => {
   const switchToSourceChain = async () => {
     if (!window.ethereum) return;
 
+    const chainIdHex = `0x${SENDER_CHAIN_ID.toString(16)}`;
+
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x7a69' }], // 31337 in hex
+        params: [{ chainId: chainIdHex }],
       });
     } catch (error: any) {
       // Chain doesn't exist, add it
@@ -46,9 +53,9 @@ const MessageForm = () => {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: '0x7a69',
-              chainName: 'Anvil Local (Sender)',
-              rpcUrls: [RPC_URLS[31337]],
+              chainId: chainIdHex,
+              chainName: getSenderChainName(),
+              rpcUrls: [getSenderRpcUrl()],
             }],
           });
         } catch (addError) {
@@ -165,7 +172,7 @@ const MessageForm = () => {
         </div>
       )}
 
-      {account && chainId !== 31337 && (
+      {account && chainId !== SENDER_CHAIN_ID && (
         <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
@@ -174,7 +181,7 @@ const MessageForm = () => {
                 Wrong Network
               </p>
               <p className="text-xs text-muted-foreground mb-3">
-                Please switch to Anvil Local chain (31337) to send messages
+                Please switch to {getSenderChainName()} ({SENDER_CHAIN_ID}) to send messages
               </p>
               <Button
                 type="button"
@@ -183,7 +190,7 @@ const MessageForm = () => {
                 onClick={switchToSourceChain}
                 className="border-destructive/30 text-destructive hover:bg-destructive/10"
               >
-                Switch to Chain 31337
+                Switch to Chain {SENDER_CHAIN_ID}
               </Button>
             </div>
           </div>
@@ -225,7 +232,7 @@ const MessageForm = () => {
           <p className="text-sm text-destructive">Invalid EVM address format</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Messages will be sent to chain 31338. Leave empty to use address(0).
+          Messages will be sent to chain {DESTINATION_CHAIN_ID}. Leave empty to use address(0).
         </p>
       </div>
 

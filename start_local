@@ -97,11 +97,20 @@ DB_PORT=5432 yarn db:migrate
 DB_PORT=5433 yarn db:migrate
 DB_PORT=5434 yarn db:migrate
 
-echo "Starting pm2"
+echo "Starting validators using pm2"
+pm2 start ecosystem.config.js
+
+cd $HOME_PATH/portal
+
+echo "Yarn Install ..."
+yarn
+
+echo "Starting portal using pm2"
 pm2 start ecosystem.config.js
 
 echo ""
 echo "✅ Deployment complete!"
 echo ""
-echo "To stop both chains: ./stop_local"
-echo "To view logs: tail -f ./logs/anvil-source.log or tail -f ./logs/anvil-dest.log"
+echo "Run `pm2 logs` to monitor validators log"
+echo "Navigate to http://127.0.0.1:3003 to send inter-chain message!"
+echo "To stop service: ./stop_local"

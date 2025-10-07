@@ -1,4 +1,5 @@
 // Contract configuration for MessageSender
+import { SENDER_CHAIN_ID, RECEIVER_CHAIN_ID } from "./config";
 
 export const MESSAGE_SENDER_ABI = [
   {
@@ -88,4 +89,45 @@ export const RELAYERS = [
     name: "Casper-2",
     rpc: "http://127.0.0.1:3002",
   },
-]
+];
+
+// Helper functions to get chain-specific values
+export function getSenderChainId(): number {
+  return SENDER_CHAIN_ID;
+}
+
+export function getReceiverChainId(): number {
+  return RECEIVER_CHAIN_ID;
+}
+
+export function getSenderChainName(): string {
+  return CHAIN_NAMES[SENDER_CHAIN_ID as keyof typeof CHAIN_NAMES] || "Unknown Chain";
+}
+
+export function getReceiverChainName(): string {
+  return CHAIN_NAMES[RECEIVER_CHAIN_ID as keyof typeof CHAIN_NAMES] || "Unknown Chain";
+}
+
+export function getSenderRpcUrl(): string {
+  return RPC_URLS[SENDER_CHAIN_ID as keyof typeof RPC_URLS] || "";
+}
+
+export function getReceiverRpcUrl(): string {
+  return RPC_URLS[RECEIVER_CHAIN_ID as keyof typeof RPC_URLS] || "";
+}
+
+export function getSenderExplorer(): string {
+  return EXPLORERS[SENDER_CHAIN_ID as keyof typeof EXPLORERS] || "";
+}
+
+export function getReceiverExplorer(): string {
+  return EXPLORERS[RECEIVER_CHAIN_ID as keyof typeof EXPLORERS] || "";
+}
+
+export function getSenderContractAddress(): string {
+  return CONTRACT_ADDRESSES[SENDER_CHAIN_ID as keyof typeof CONTRACT_ADDRESSES] || "";
+}
+
+export function getReceiverContractAddress(): string {
+  return CONTRACT_ADDRESSES[RECEIVER_CHAIN_ID as keyof typeof CONTRACT_ADDRESSES] || "";
+}

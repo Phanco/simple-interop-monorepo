@@ -1,4 +1,11 @@
+# IDE Files
+.idea
+
+# Running PIDs of Anvil
 .anvil.pids
+
+# Backup files
+*.bak
 
 # Relayer Docker DB
 postgres0
@@ -8,3 +15,8 @@ postgres2
 # Ignore log files but keep .keep
 logs/*
 !logs/.keep
+
+# Local Documents
+IDEA.md
+CLAUDE.md
+REQUIREMENT.md

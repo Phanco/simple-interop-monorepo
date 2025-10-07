@@ -62,10 +62,16 @@ class Broadcaster {
 
     for (const message of pendingMessages) {
       // Check if the nonce is ready, if not, skip
-      const currentNonce: bigint = await receiverContract.processedMessageNonces(senderChainId, message.sender);
+      const currentNonce: bigint =
+        await receiverContract.processedMessageNonces(
+          senderChainId,
+          message.sender,
+        );
 
       if (message.nonce !== Number(currentNonce)) {
-        console.log(`Skipping ${message.messageId}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`);
+        console.log(
+          `Skipping ${message.messageId}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`,
+        );
         continue;
       }
 
@@ -103,7 +109,9 @@ class Broadcaster {
 
         await tx.wait();
 
-        console.log(`Message: ${message.messageId} broadcasted, txid: ${tx.hash}`);
+        console.log(
+          `Message: ${message.messageId} broadcasted, txid: ${tx.hash}`,
+        );
         message.status = 2;
         await message.save();
       }
@@ -120,7 +128,7 @@ class Broadcaster {
         console.log("Error in Broadcast", err.message);
       }
       setTimeout(poll, senderNetwork.blockTime * 1000);
-    }
+    };
 
     await poll();
   }

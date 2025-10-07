@@ -1,8 +1,11 @@
-import { Network } from "lucide-react";
 import ChainDisplay from "@/components/ChainDisplay";
 import MessageForm from "@/components/MessageForm";
-import RecentMessages from "@/components/RecentMessages";
-import { CHAIN_NAMES } from "@/lib/contracts";
+import {
+  getSenderChainId,
+  getReceiverChainId,
+  getSenderChainName,
+  getReceiverChainName,
+} from "@/lib/contracts";
 
 export default function Home() {
   return (
@@ -20,10 +23,10 @@ export default function Home() {
 
         {/* Chain Display */}
         <ChainDisplay
-          sourceChain={CHAIN_NAMES[31337]}
-          destinationChain={CHAIN_NAMES[31338]}
-          sourceChainId={31337}
-          destinationChainId={31338}
+          sourceChain={getSenderChainName()}
+          destinationChain={getReceiverChainName()}
+          sourceChainId={getSenderChainId()}
+          destinationChainId={getReceiverChainId()}
         />
 
         {/* Message Form Card */}
