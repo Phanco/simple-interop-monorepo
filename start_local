@@ -69,6 +69,12 @@ echo ""
 
 cd $HOME_PATH/contract
 
+echo "Copy .env.example to .env"
+cp .env.example .env
+
+echo "Running forge install ..."
+forge install
+
 # Deploy MessageSender to source chain
 echo "Deploying MessageSender to Source Chain (port 8545)..."
 forge script script/MessageSender.s.sol:DeployMessageSender \
