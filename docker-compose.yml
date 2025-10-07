@@ -1,7 +1,7 @@
 name: simple-interop
 services:
   postgres0:
-    image: postgres
+    image: postgres:17
     restart: always
     ports:
       - '5432:5432'
@@ -11,9 +11,9 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres0:/var/lib/postgresql
+      - ./postgres0:/var/lib/postgresql/data
   postgres1:
-    image: postgres
+    image: postgres:17
     restart: always
     ports:
       - '5433:5432'
@@ -23,9 +23,9 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres1:/var/lib/postgresql
+      - ./postgres1:/var/lib/postgresql/data
   postgres2:
-    image: postgres
+    image: postgres:17
     restart: always
     ports:
       - '5434:5432'
@@ -35,4 +35,4 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres2:/var/lib/postgresql
+      - ./postgres2:/var/lib/postgresql/data
