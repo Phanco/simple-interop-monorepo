@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres0:/var/lib/postgresql/data
+      - ./postgres0:/var/lib/postgresql
   postgres1:
     image: postgres
     restart: always
@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres1:/var/lib/postgresql/data
+      - ./postgres1:/var/lib/postgresql
   postgres2:
     image: postgres
     restart: always
@@ -35,4 +35,4 @@ services:
       POSTGRES_PASSWORD: let-me-in
       POSTGRES_DB: simple-interop
     volumes:
-      - ./postgres2:/var/lib/postgresql/data
+      - ./postgres2:/var/lib/postgresql
