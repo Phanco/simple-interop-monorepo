@@ -8,7 +8,7 @@ import Monitor from "./Monitor";
 // Setup Express HTTP server
 const app = express();
 const HOST = process.env.HOST || "0.0.0.0";
-const PORT = process.env.PORT || 3000;
+const PORT = +process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -34,7 +34,7 @@ app.get("/message/:id", async (req, res) => {
   }
 });
 
-app.listen(HOST, PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`HTTP server running on port ${PORT}`);
 });
 
