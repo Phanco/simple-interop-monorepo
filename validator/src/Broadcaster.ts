@@ -38,10 +38,10 @@ class Broadcaster {
     const pendingMessages = await Message.findAll({
       where: {
         [Op.and]: [
+          { fromNetworkId: senderNetwork.id},
+          {toNetworkId: receiverNetwork.id},
           { status: 0 },
-          literal(
-            `"globalNonce" % ${this.totalRelayers} = ${this.relayerIndex}`,
-          ),
+          literal(`"nonce" % ${this.totalRelayers} = ${this.relayerIndex}`),
         ],
       },
     });
@@ -61,6 +61,7 @@ class Broadcaster {
     }
 
     for (const message of pendingMessages) {
+      console.log(`Processing Message: ${message.senderChainHash}`);
       // Check if the nonce is ready, if not, skip
       const currentNonce: bigint =
         await receiverContract.processedMessageNonces(
@@ -70,14 +71,16 @@ class Broadcaster {
 
       if (message.nonce !== Number(currentNonce)) {
         console.log(
-          `Skipping ${message.messageId}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`,
+          `Skipping ${message.senderChainHash}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`,
         );
         continue;
       }
 
       const signatures = [message.signature];
       for (const peer of peers) {
-        const result = await fetch(peer.uri + "/message/" + message.messageId);
+        const result = await fetch(
+          peer.uri + "/message/" + message.senderChainHash,
+        );
         if (result.status !== 200) {
           continue;
         }
@@ -91,7 +94,7 @@ class Broadcaster {
 
       if (signatures.length >= this.requiredSignatures) {
         console.log(
-          `Message: ${message.messageId} has reached enough signatures`,
+          `Message: ${message.senderChainHash} has reached enough signatures`,
         );
         signatures.splice(this.requiredSignatures);
 
@@ -110,7 +113,7 @@ class Broadcaster {
         await tx.wait();
 
         console.log(
-          `Message: ${message.messageId} broadcasted, txid: ${tx.hash}`,
+          `Message: ${message.senderChainHash} broadcasted, txid: ${tx.hash}`,
         );
         message.status = 2;
         await message.save();

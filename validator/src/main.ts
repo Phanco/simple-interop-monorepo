@@ -7,6 +7,7 @@ import Monitor from "./Monitor";
 
 // Setup Express HTTP server
 const app = express();
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -17,11 +18,11 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/message/:id", async (req, res) => {
-  const messageId = req.params.id;
+  const txid = req.params.id;
   try {
     const message = await Message.findOne({
       where: {
-        messageId,
+        senderChainHash: txid,
       },
     });
     if (!message) {
@@ -33,7 +34,7 @@ app.get("/message/:id", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(HOST, PORT, () => {
   console.log(`HTTP server running on port ${PORT}`);
 });
 

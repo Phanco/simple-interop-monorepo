@@ -48,31 +48,31 @@ export const MESSAGE_SENDER_ABI = [
 
 // Placeholder contract addresses - replace with actual deployed addresses
 export const CONTRACT_ADDRESSES = {
-  // Optimism (Chain ID: 10)
   31337: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  // Sepolia Testnet (Chain ID: 11155111)
   31338: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  11155111: "0x1bEF4ff678ADbB41492850b746E1B98058aFB1bC",
+  11155420: "0x4cbf76b09464125a9ef6638fA50dDF57f994C58a",
 } as const;
 
 // Placeholder RPC URLs - replace with actual RPC endpoints
 export const RPC_URLS = {
   31337: "http://127.0.0.1:8545",
   31338: "http://127.0.0.1:8546",
-  84532: "https://sepolia.base.org",
+  11155111: "https://sepolia.drpc.org",
   11155420: "https://sepolia.optimism.io",
 } as const;
 
 export const CHAIN_NAMES = {
   31337: "Anvil Testnet (Sender)",
   31338: "Anvil Testnet (Receiver)",
-  84532: "Base Testnet (Sepolia)",
+  11155111: "Sepolia Testnet",
   11155420: "OP Testnet (Sepolia)",
 } as const;
 
 export const EXPLORERS = {
   31337: "http://127.0.0.1:3000/tx/",
   31338: "http://127.0.0.1:3000/tx/",
-  84532: "https://sepolia.basescan.org/tx/",
+  11155111: "https://sepolia.etherscan.io/tx/",
   11155420: "https://testnet-explorer.optimism.io/tx/",
 } as const;
 

@@ -4,8 +4,8 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     const [networks] = await queryInterface.sequelize.query('SELECT * FROM "Networks"');
 
-    const fromNetwork = networks.find(network => network.chainId === 31337);
-    const toNetwork = networks.find(network => network.chainId === 31338);
+    const fromNetwork = networks.find(network => network.chainId === +process.env.SENDER_CHAIN_ID);
+    const toNetwork = networks.find(network => network.chainId === +process.env.RECEIVER_CHAIN_ID);
 
     const peers = [{
       fromNetworkId: fromNetwork.id,

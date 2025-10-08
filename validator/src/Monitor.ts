@@ -17,7 +17,7 @@ class Monitor {
   constructor(public readonly networkControl: NetworkControl) {}
 
   public async processEvent(event: EventLog) {
-    const messageId = `${event.transactionHash}-${event.transactionIndex}`;
+    const messageId = `${event.transactionHash}-${event.index}`;
     const senderInterface = new Interface(MESSAGE_SENDER_ABI);
     const parsedEvent = senderInterface.parseLog({
       data: event.data,

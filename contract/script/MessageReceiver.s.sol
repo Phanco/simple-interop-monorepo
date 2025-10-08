@@ -32,7 +32,7 @@ contract DeployMessageReceiver is Script {
 
         vm.stopBroadcast();
 
-        console.log("MessageSender deployed at:", address(messageReceiver));
+        console.log("MessageReceiver deployed at:", address(messageReceiver));
     }
 
     function printRelayers(address[] memory relayers) internal pure {

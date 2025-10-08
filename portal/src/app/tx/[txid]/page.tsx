@@ -27,7 +27,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
   // Poll validators every 2 seconds
   useEffect(() => {
     const pollValidators = async () => {
-      const messageId = `${txid}-0`;
+      const messageId = `${txid}`;
 
       for (const relayer of RELAYERS) {
         try {

@@ -99,9 +99,9 @@ echo "Yarn Install ..."
 yarn
 
 echo "Migrating DB"
-DB_PORT=5432 yarn db:migrate
-DB_PORT=5433 yarn db:migrate
-DB_PORT=5434 yarn db:migrate
+SENDER_CHAIN_ID=31337 RECEIVER_CHAIN_ID=31338 DB_PORT=5432 yarn db:migrate
+SENDER_CHAIN_ID=31337 RECEIVER_CHAIN_ID=31338 DB_PORT=5433 yarn db:migrate
+SENDER_CHAIN_ID=31337 RECEIVER_CHAIN_ID=31338 DB_PORT=5434 yarn db:migrate
 
 echo "Starting validators using pm2"
 pm2 start ecosystem.config.js
@@ -117,6 +117,6 @@ pm2 start ecosystem.config.js
 echo ""
 echo "✅ Deployment complete!"
 echo ""
-echo "Run `pm2 logs` to monitor validators log"
+echo "Run 'pm2 logs' to monitor validators log"
 echo "Navigate to http://127.0.0.1:3003 to send inter-chain message!"
 echo "To stop service: ./stop_local"
