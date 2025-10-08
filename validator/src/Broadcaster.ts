@@ -69,10 +69,17 @@ class Broadcaster {
           message.sender,
         );
 
-      if (message.nonce !== Number(currentNonce)) {
+      if (message.nonce > Number(currentNonce)) {
         console.log(
           `Skipping ${message.senderChainHash}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`,
         );
+        continue;
+      } else if (message.nonce < Number(currentNonce)) {
+        console.log(
+          `Skipping ${message.senderChainHash}, nonce has already been processed. (Chain: ${currentNonce}, Message: ${message.nonce})`,
+        );
+        message.status = 3;
+        await message.save();
         continue;
       }
 
