@@ -49,7 +49,9 @@ pm2 stop ecosystem.config.js
 cd $HOME_PATH/portal
 pm2 stop ecosystem.config.js
 
+cd $HOME_PATH/
 # Removing Postgres Data
+echo "Removing postgres data"
 rm -rf postgres0
 rm -rf postgres1
 rm -rf postgres2

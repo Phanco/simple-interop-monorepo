@@ -38,8 +38,8 @@ class Broadcaster {
     const pendingMessages = await Message.findAll({
       where: {
         [Op.and]: [
-          { fromNetworkId: senderNetwork.id},
-          {toNetworkId: receiverNetwork.id},
+          { fromNetworkId: senderNetwork.id },
+          { toNetworkId: receiverNetwork.id },
           { status: 0 },
           literal(`"nonce" % ${this.totalRelayers} = ${this.relayerIndex}`),
         ],
