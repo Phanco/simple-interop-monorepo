@@ -25,7 +25,7 @@ module.exports = {
         rpc: "https://sepolia.drpc.org",
         blockTime: 12,
         lastProcessedBlock: 9759091,
-        messengerAddress: "0x581591a4E67a57c315Ee68CB5F6Ab1e8A5F83553",
+        messengerAddress: "0x6b5FD02Dc809c70f4A19FDd183EA95520EFCb678",
       },
       {
         id: 11155420,
@@ -33,7 +33,7 @@ module.exports = {
         rpc: "https://sepolia.optimism.io",
         blockTime: 2,
         lastProcessedBlock: 36475108,
-        messengerAddress: "0xA26EE2631d15729430E2F44f60ef3D6788C06571",
+        messengerAddress: "0x03795a3cfa3B6D356caE88Af798F72D45eD4aD0a",
       },
     ];
 
