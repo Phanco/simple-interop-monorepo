@@ -24,16 +24,16 @@ module.exports = {
         name: "Sepolia Testnet",
         rpc: "https://sepolia.drpc.org",
         blockTime: 12,
-        lastProcessedBlock: 9752154,
-        messengerAddress: "0x1bEF4ff678ADbB41492850b746E1B98058aFB1bC",
+        lastProcessedBlock: 9759091,
+        messengerAddress: "0x581591a4E67a57c315Ee68CB5F6Ab1e8A5F83553",
       },
       {
         id: 11155420,
         name: "OP Testnet (Sepolia)",
         rpc: "https://sepolia.optimism.io",
         blockTime: 2,
-        lastProcessedBlock: 36429930,
-        messengerAddress: "0x4cbf76b09464125a9ef6638fA50dDF57f994C58a",
+        lastProcessedBlock: 36475108,
+        messengerAddress: "0xA26EE2631d15729430E2F44f60ef3D6788C06571",
       },
     ];
 
