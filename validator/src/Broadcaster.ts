@@ -173,6 +173,8 @@ class Broadcaster {
           message.messageHash,
           signatures.slice(0, this.requiredSignatures),
         );
+        await tx.wait();
+
         message.status = MessageStatus.ACKED;
         message.ackHash = tx.hash;
         await message.save();
