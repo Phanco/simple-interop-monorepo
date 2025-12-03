@@ -5,9 +5,10 @@ module.exports = {
     await queryInterface.createTable("Networks", {
       id: {
         allowNull: false,
-        autoIncrement: true,
+        autoIncrement: false,
         primaryKey: true,
         type: Sequelize.INTEGER,
+        comment: "Chain ID (must be explicitly provided, non-sequential)",
       },
       name: {
         type: Sequelize.STRING,
@@ -17,11 +18,7 @@ module.exports = {
       rpc: {
         type: Sequelize.STRING,
         allowNull: false,
-        unique: false,
-      },
-      chainId: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
+        unique: true,
       },
       blockTime: {
         type: Sequelize.INTEGER,
@@ -36,6 +33,10 @@ module.exports = {
         allowNull: true,
       },
       receiverContractAddress: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      messengerAddress: {
         type: Sequelize.STRING,
         allowNull: true,
       },

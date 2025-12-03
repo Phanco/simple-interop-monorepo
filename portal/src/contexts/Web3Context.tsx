@@ -63,7 +63,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
 
       // Initialize contract if address exists for this chain
       const contractAddress = CONTRACT_ADDRESSES[userChainId as keyof typeof CONTRACT_ADDRESSES];
-      if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
+      if (contractAddress) {
         const signer = await browserProvider.getSigner();
         const messageSenderContract = new Contract(contractAddress, MESSAGE_SENDER_ABI, signer);
         setContract(messageSenderContract);
@@ -96,7 +96,8 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
+    const handleAccountsChanged = (...args: unknown[]) => {
+      const accounts = args[0] as string[];
       if (accounts.length === 0) {
         disconnectWallet();
       } else {
@@ -107,14 +108,15 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
       }
     };
 
-    const handleChainChanged = (chainIdHex: string) => {
+    const handleChainChanged = (...args: unknown[]) => {
+      const chainIdHex = args[0] as string;
       const newChainId = parseInt(chainIdHex, 16);
       setChainId(newChainId);
 
       // Update contract for new chain
       if (provider) {
         const contractAddress = CONTRACT_ADDRESSES[newChainId as keyof typeof CONTRACT_ADDRESSES];
-        if (contractAddress && contractAddress !== "0x0000000000000000000000000000000000000000") {
+        if (contractAddress) {
           provider.getSigner().then((signer) => {
             const messageSenderContract = new Contract(contractAddress, MESSAGE_SENDER_ABI, signer);
             setContract(messageSenderContract);
@@ -133,7 +135,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     window.ethereum.on("chainChanged", handleChainChanged);
 
     return () => {
-      if (window.ethereum.removeListener) {
+      if (window.ethereum?.removeListener) {
         window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       }
@@ -159,8 +161,8 @@ declare global {
     ethereum?: {
       isMetaMask?: boolean;
       request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on: (event: string, callback: (...args: any[]) => void) => void;
-      removeListener: (event: string, callback: (...args: any[]) => void) => void;
+      on: (event: string, callback: (...args: unknown[]) => void) => void;
+      removeListener: (event: string, callback: (...args: unknown[]) => void) => void;
     };
   }
 }

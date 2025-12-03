@@ -129,7 +129,7 @@ export const MESSAGE_SENDER_ABI = [
   },
 ];
 
-export const MESSAGE_RECEIVER_API = [
+export const MESSENGER_ABI = [
   {
     type: "constructor",
     inputs: [
@@ -166,6 +166,25 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "function",
+    name: "ackHashes",
+    inputs: [
+      {
+        name: "",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "currentProposals",
     inputs: [
       {
@@ -193,41 +212,7 @@ export const MESSAGE_RECEIVER_API = [
         internalType: "uint256",
       },
       {
-        name: "nonce",
-        type: "uint256",
-        internalType: "uint256",
-      },
-      {
-        name: "sender",
-        type: "address",
-        internalType: "address",
-      },
-      {
-        name: "recipient",
-        type: "address",
-        internalType: "address",
-      },
-      {
-        name: "payload",
-        type: "bytes",
-        internalType: "bytes",
-      },
-    ],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "getMessagePrehash",
-    inputs: [
-      {
-        name: "sourceChainId",
+        name: "destinationChainId",
         type: "uint256",
         internalType: "uint256",
       },
@@ -259,7 +244,7 @@ export const MESSAGE_RECEIVER_API = [
         internalType: "bytes32",
       },
     ],
-    stateMutability: "view",
+    stateMutability: "pure",
   },
   {
     type: "function",
@@ -267,6 +252,43 @@ export const MESSAGE_RECEIVER_API = [
     inputs: [
       {
         name: "relayer",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "globalNonce",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "incomingNonces",
+    inputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "",
         type: "address",
         internalType: "address",
       },
@@ -326,6 +348,30 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "function",
+    name: "outgoingNonces",
+    inputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "owner",
     inputs: [],
     outputs: [
@@ -333,30 +379,6 @@ export const MESSAGE_RECEIVER_API = [
         name: "",
         type: "address",
         internalType: "address",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "processedMessageNonces",
-    inputs: [
-      {
-        name: "",
-        type: "uint256",
-        internalType: "uint256",
-      },
-      {
-        name: "",
-        type: "address",
-        internalType: "address",
-      },
-    ],
-    outputs: [
-      {
-        name: "",
-        type: "uint256",
-        internalType: "uint256",
       },
     ],
     stateMutability: "view",
@@ -373,6 +395,24 @@ export const MESSAGE_RECEIVER_API = [
       },
     ],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "receiveAck",
+    inputs: [
+      {
+        name: "messageHash",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "signatures",
+        type: "bytes[]",
+        internalType: "bytes[]",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -472,6 +512,34 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "function",
+    name: "sendMessage",
+    inputs: [
+      {
+        name: "destinationChainId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "recipient",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "nonce",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "payload",
+        type: "bytes",
+        internalType: "bytes",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "transferOwnership",
     inputs: [
       {
@@ -522,6 +590,19 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "event",
+    name: "AckReceived",
+    inputs: [
+      {
+        name: "messageHash",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
     name: "MessageReceived",
     inputs: [
       {
@@ -553,6 +634,49 @@ export const MESSAGE_RECEIVER_API = [
         type: "bytes",
         indexed: false,
         internalType: "bytes",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "MessageSent",
+    inputs: [
+      {
+        name: "destinationChainId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "sender",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "nonce",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "recipient",
+        type: "address",
+        indexed: false,
+        internalType: "address",
+      },
+      {
+        name: "payload",
+        type: "bytes",
+        indexed: false,
+        internalType: "bytes",
+      },
+      {
+        name: "globalNonce",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
       },
     ],
     anonymous: false,
@@ -597,7 +721,12 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "error",
-    name: "AlreadyNominated",
+    name: "AckAlreadyProcessed",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "AlreadyRelayer",
     inputs: [],
   },
   {
@@ -634,17 +763,22 @@ export const MESSAGE_RECEIVER_API = [
   },
   {
     type: "error",
-    name: "InvalidRecipient",
+    name: "EmptyPayload",
     inputs: [],
   },
   {
     type: "error",
-    name: "InvalidRelayer",
+    name: "InsufficientRelayers",
     inputs: [],
   },
   {
     type: "error",
-    name: "InvalidSignature",
+    name: "InvalidDestinationChain",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidNonce",
     inputs: [],
   },
   {

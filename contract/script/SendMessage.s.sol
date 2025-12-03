@@ -4,32 +4,35 @@ pragma solidity ^0.8.27;
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 
-import { MessageSender } from "../src/sender/MessageSender.sol";
+import { Messenger } from "../src/Messenger.sol";
 
 contract SendMessage is Script {
-    MessageSender public messageSender;
+    Messenger public messenger;
 
     function run() external {
         string memory message = vm.envString("MESSAGE");
         console.log("Sending Message:", message);
 
+        uint256 destinationChainId = vm.envUint("CHAIN_ID");
+        console.log("Destination Chain ID:", destinationChainId);
+
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         console.log("Deployer:", deployer);
 
-        uint256 destinationChainId = 31338;
-        string memory jsonPath = string.concat("./deployment/", vm.toString(block.chainid), "/Sender.json");
+        string memory jsonPath = string.concat("./deployment/", vm.toString(block.chainid), "/Messenger.json");
         string memory json = vm.readFile(jsonPath);
 
-        address messageSenderAddress = vm.parseJsonAddress(json, ".messageSender");
-        messageSender = MessageSender(messageSenderAddress);
+        address messengerAddress = vm.parseJsonAddress(json, ".messenger");
+        messenger = Messenger(messengerAddress);
+        console.log("Messenger Address:", messengerAddress);
 
-        uint256 nextNonce = messageSender.nonces(deployer, destinationChainId);
+        uint256 nextNonce = messenger.outgoingNonces(deployer, destinationChainId);
 
         vm.startBroadcast(deployerPrivateKey);
 
         // Send a Message
-        messageSender.sendMessage(
+        messenger.sendMessage(
             destinationChainId, address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8), nextNonce, bytes(message)
         );
 

@@ -1,14 +1,15 @@
 "use client";
 
 import { use, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Copy, Home, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import {
   RELAYERS,
-  getSenderExplorer,
-  getReceiverExplorer,
+  getExplorer,
+  getConfiguredChainIds,
 } from "@/lib/contracts";
 
 interface TransactionPageProps {
@@ -19,10 +20,19 @@ interface TransactionPageProps {
 
 export default function TransactionPage({ params }: TransactionPageProps) {
   const { txid } = use(params);
+  const searchParams = useSearchParams();
   const [copied, setCopied] = useState(false);
   const [validatorSignatures, setValidatorSignatures] = useState<Record<string, boolean>>({});
   const [receiverChainCompleted, setReceiverChainCompleted] = useState(false);
   const [receiverChainHash, setReceiverChainHash] = useState<string | null>(null);
+  const [ackSignatures, setAckSignatures] = useState<Record<string, boolean>>({});
+  const [ackCompleted, setAckCompleted] = useState(false);
+  const [ackHash, setAckHash] = useState<string | null>(null);
+
+  // Get source and destination chain IDs from query params or use defaults
+  const [defaultChain1, defaultChain2] = getConfiguredChainIds();
+  const sourceChain = parseInt(searchParams.get('from') || '') || defaultChain1;
+  const destChain = parseInt(searchParams.get('to') || '') || defaultChain2;
 
   // Poll validators every 2 seconds
   useEffect(() => {
@@ -45,10 +55,20 @@ export default function TransactionPage({ params }: TransactionPageProps) {
               setReceiverChainCompleted(true);
               setReceiverChainHash(data.receiverChainHash);
             }
+
+            // Check if validator has ACK signature
+            if (data.ackSignature) {
+              setAckSignatures(prev => ({ ...prev, [relayer.name]: true }));
+            }
+
+            // Check if ACK transaction exists
+            if (data.ackHash) {
+              setAckCompleted(true);
+              setAckHash(data.ackHash);
+            }
           }
-        } catch (error) {
+        } catch {
           // Silently ignore errors - validator might not be ready yet
-          console.log(`Failed to fetch from ${relayer.name}:`, error);
         }
       }
     };
@@ -66,7 +86,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
       setCopied(true);
       toast.success("Transaction hash copied!");
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to copy");
     }
   };
@@ -113,7 +133,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(`${getSenderExplorer()}${txid}`, "_blank")}
+                      onClick={() => window.open(`${getExplorer(sourceChain)}${txid}`, "_blank")}
                       className="flex-shrink-0"
                     >
                       <ExternalLink className="w-4 h-4" />
@@ -201,7 +221,7 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => window.open(`${getReceiverExplorer()}${receiverChainHash}`, "_blank")}
+                        onClick={() => window.open(`${getExplorer(destChain)}${receiverChainHash}`, "_blank")}
                         className="flex-shrink-0"
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -209,6 +229,88 @@ export default function TransactionPage({ params }: TransactionPageProps) {
                     </div>
                   </div>
                 </div>}
+
+                {/* Step 3.5: ACK Validators Status - Only show when receiver chain is completed */}
+                {receiverChainCompleted && (
+                  <div className="p-4 bg-muted/30 border border-border rounded-lg">
+                    <div className="mb-3 font-medium text-foreground">ACK Validators Status</div>
+                    <div className="flex flex-wrap gap-2">
+                      {RELAYERS.map((relayer) => {
+                        const hasAckSigned = ackSignatures[relayer.name] || false;
+                        return (
+                          <div
+                            key={relayer.name}
+                            className={`px-3 py-2 rounded-md border font-medium text-sm transition-colors ${
+                              hasAckSigned
+                                ? "text-green-500 border-green-500/50 bg-green-500/10"
+                                : "text-red-500 border-red-500/50 bg-red-500/10"
+                            }`}
+                          >
+                            {relayer.name}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: ACK Sent Back to Sender Chain */}
+                <div
+                  className={`p-4 rounded-lg border transition-colors ${
+                    ackCompleted
+                      ? "bg-green-500/10 border-green-500/30"
+                      : "bg-muted/30 border-border"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {ackCompleted ? (
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border-2 border-muted-foreground flex-shrink-0" />
+                    )}
+                    <span
+                      className={`font-medium ${
+                        ackCompleted ? "text-green-500" : "text-muted-foreground"
+                      }`}
+                    >
+                      ACK Sent Back to Sender Chain
+                    </span>
+                  </div>
+                </div>
+                {ackHash && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      ACK Transaction Hash in Sender Chain
+                    </label>
+                    <div className="bg-muted/50 border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        <code className="flex-1 text-sm font-mono text-foreground break-all">
+                          {ackHash}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={copyToClipboard}
+                          className="flex-shrink-0"
+                        >
+                          {copied ? (
+                            <CheckCircle className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(`${getExplorer(sourceChain)}${ackHash}`, "_blank")}
+                          className="flex-shrink-0"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

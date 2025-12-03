@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Deploy MessageSender to source chain
+echo "Deploying MessageSender to Source Chain (Sepolia)..."
+forge script script/MessageSender.s.sol:DeployMessageSender \
+  --rpc-url https://sepolia.drpc.org \
+  --broadcast
+
+# Deploy MessageReceiver to destination chain
+echo "Deploying MessageReceiver to Destination Chain (OP Testnet)..."
+forge script script/MessageReceiver.s.sol:DeployMessageReceiver \
+  --rpc-url https://sepolia.optimism.io \
+  --broadcast

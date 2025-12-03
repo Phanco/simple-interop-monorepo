@@ -1,0 +1,9 @@
+export enum MessageStatus {
+  PENDING,
+  SIGNED,
+  BOARDCASTED,
+  COMPLETED,
+  CANCELLED,
+  RECEIVED,
+  ACKED,
+}

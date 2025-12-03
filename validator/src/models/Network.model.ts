@@ -2,6 +2,9 @@ import { Table, Column, Model, Unique } from "sequelize-typescript";
 
 @Table
 class Network extends Model {
+  // id is the chainId (non-sequential, must be explicitly provided)
+  declare id: number;
+
   @Unique
   @Column
   declare name: string;
@@ -9,10 +12,6 @@ class Network extends Model {
   @Unique
   @Column
   declare rpc: string;
-
-  @Unique
-  @Column
-  declare chainId: number;
 
   @Column
   declare blockTime: number;
@@ -25,6 +24,9 @@ class Network extends Model {
 
   @Column
   declare receiverContractAddress: string;
+
+  @Column
+  declare messengerAddress: string;
 }
 
 export default Network;

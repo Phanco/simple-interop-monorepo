@@ -14,6 +14,11 @@ module.exports = {
         allowNull: false,
         unique: true,
       },
+      messageHash: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        unique: true,
+      },
       fromNetworkId: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -56,6 +61,11 @@ module.exports = {
       },
       signature: {
         type: Sequelize.STRING,
+        allowNull: false,
+      },
+      ackSignature: {
+        type: Sequelize.STRING,
+        allowNull: true,
       },
       status: {
         type: Sequelize.INTEGER,
@@ -66,6 +76,10 @@ module.exports = {
         allowNull: true,
       },
       receiverChainHash: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+      ackHash: {
         type: Sequelize.STRING,
         allowNull: true,
       },

@@ -15,6 +15,8 @@ export default {
   SENDER_CHAIN_ID: +env.SENDER_CHAIN_ID || 31337,
   RECEIVER_CHAIN_ID: +env.RECEIVER_CHAIN_ID || 31338,
 
+  SUPPORTED_CHAIN_IDS: env.SUPPORTED_CHAIN_IDS?.split(",").map(Number) || [],
+
   NAME: env.NAME || "",
   PRIVATE_KEY: env.PRIVATE_KEY || "",
 };

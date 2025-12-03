@@ -44,10 +44,16 @@ app.listen(PORT, HOST, () => {
   const networkControl = new NetworkControl();
   await networkControl.init();
 
-  const broadcaster = new Broadcaster(process.env.NAME, networkControl);
-  await broadcaster.init();
-  await broadcaster.start();
+  for (const network of networkControl.supportedNetworks) {
+    const broadcaster = new Broadcaster(
+      process.env.NAME,
+      network,
+      networkControl,
+    );
+    await broadcaster.init();
+    await broadcaster.start();
 
-  const monitor = new Monitor(networkControl);
-  await monitor.start();
+    const monitor = new Monitor(network, networkControl);
+    await monitor.start();
+  }
 })();

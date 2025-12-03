@@ -2,83 +2,81 @@ import { literal, Op } from "sequelize";
 
 import { Message, Peer } from "./db";
 import NetworkControl from "./NetworkControl";
-import env from "./env";
+import { MessageStatus } from "./messageStatus";
 
 class Broadcaster {
+  public readonly chainId: number;
   public totalRelayers: number;
   public relayerIndex: number;
   public requiredSignatures: number;
 
   constructor(
     public readonly name: string,
+    public readonly network,
     public readonly networkControl: NetworkControl,
   ) {
-    console.log(`Broadcaster: ${this.name}`);
+    this.chainId = network.network.id;
+  }
+
+  private log(text: string) {
+    console.log(`[${this.chainId}] ${text}`);
   }
 
   public async init() {
-    const { receiverContract, wallet } = this.networkControl;
-    this.totalRelayers = Number(await receiverContract.relayersLength());
-    this.relayerIndex = Number(
-      await receiverContract.getRelayerIndex(wallet.address),
-    );
-    this.requiredSignatures = Number(
-      await receiverContract.CONSENSUS_THRESHOLD(),
-    );
+    const { contract } = this.network;
+    const { wallet } = this.networkControl;
 
-    console.log(
+    this.totalRelayers = Number(await contract.relayersLength());
+    this.relayerIndex = Number(await contract.getRelayerIndex(wallet.address));
+    this.requiredSignatures = Number(await contract.CONSENSUS_THRESHOLD());
+
+    this.log(
       `Broadcaster initiated: ${this.relayerIndex}/${this.totalRelayers}`,
     );
   }
 
   public async main() {
-    const { senderChainId, senderNetwork, receiverNetwork, receiverContract } =
-      this.networkControl;
-
     const pendingMessages = await Message.findAll({
       where: {
         [Op.and]: [
-          { fromNetworkId: senderNetwork.id },
-          { toNetworkId: receiverNetwork.id },
-          { status: 0 },
+          { fromNetworkId: this.chainId },
+          { status: MessageStatus.PENDING },
           literal(`"nonce" % ${this.totalRelayers} = ${this.relayerIndex}`),
         ],
       },
     });
-
-    const peers = await Peer.findAll({
-      where: {
-        fromNetworkId: senderNetwork.id,
-        toNetworkId: receiverNetwork.id,
-        name: {
-          [Op.not]: env.NAME,
-        },
-      },
-    });
-
     if (pendingMessages.length === 0) {
       return;
     }
 
+    const peers = await Peer.getPeers(this.chainId);
+    if (peers.length === 0) {
+      return;
+    }
+
     for (const message of pendingMessages) {
-      console.log(`Processing Message: ${message.senderChainHash}`);
+      this.log(`Processing Message: ${message.senderChainHash}`);
+      const receivingNetwork = this.networkControl.supportedNetworks.find(
+        (network) => network.chainId === message.toNetworkId,
+      );
+
       // Check if the nonce is ready, if not, skip
       const currentNonce: bigint =
-        await receiverContract.processedMessageNonces(
-          senderChainId,
+        await receivingNetwork.contract.incomingNonces(
+          this.chainId,
           message.sender,
         );
 
       if (message.nonce > Number(currentNonce)) {
-        console.log(
+        this.log(
           `Skipping ${message.senderChainHash}, incorrect nonce (Chain: ${currentNonce}, Message: ${message.nonce})`,
         );
         continue;
       } else if (message.nonce < Number(currentNonce)) {
-        console.log(
+        this.log(
           `Skipping ${message.senderChainHash}, nonce has already been processed. (Chain: ${currentNonce}, Message: ${message.nonce})`,
         );
-        message.status = 3;
+        message.status = MessageStatus.BOARDCASTED;
         await message.save();
         continue;
       }
@@ -100,13 +98,16 @@ class Broadcaster {
       }
 
       if (signatures.length >= this.requiredSignatures) {
-        console.log(
+        this.log(
           `Message: ${message.senderChainHash} has reached enough signatures`,
         );
         signatures.splice(this.requiredSignatures);
 
-        const tx = await receiverContract.receiveMessage(
-          senderNetwork.chainId,
+        const receiverNetwork = this.networkControl.supportedNetworks.find(
+          (network) => network.chainId === message.toNetworkId,
+        );
+        const tx = await receiverNetwork.contract.receiveMessage(
+          this.chainId,
           message.nonce,
           message.sender,
           message.recipient,
@@ -114,30 +115,81 @@ class Broadcaster {
           signatures.slice(0, this.requiredSignatures),
         );
         message.receiverChainHash = tx.hash;
-        message.status = 1;
+        message.status = MessageStatus.SIGNED;
         await message.save();
 
         await tx.wait();
 
-        console.log(
+        this.log(
           `Message: ${message.senderChainHash} broadcasted, txid: ${tx.hash}`,
         );
-        message.status = 2;
+        message.status = MessageStatus.BOARDCASTED;
         await message.save();
       }
     }
   }
 
-  public async start() {
-    const { senderNetwork } = this.networkControl;
+  public async broadcastAck() {
+    const receivedMessages = await Message.findAll({
+      where: {
+        [Op.and]: [
+          { toNetworkId: this.chainId },
+          { status: MessageStatus.RECEIVED },
+          literal(`"nonce" % ${this.totalRelayers} = ${this.relayerIndex}`),
+        ],
+      },
+    });
+    if (receivedMessages.length === 0) {
+      return;
+    }
 
+    const peers = await Peer.getPeers(this.chainId);
+    if (peers.length === 0) {
+      return;
+    }
+
+    for (const message of receivedMessages) {
+      const signatures = [message.ackSignature];
+      for (const peer of peers) {
+        const result = await fetch(
+          peer.uri + "/message/" + message.senderChainHash,
+        );
+        if (result.status !== 200) {
+          continue;
+        }
+
+        const data = await result.json();
+
+        if (data.ackSignature) {
+          signatures.push(data.ackSignature);
+        }
+      }
+
+      if (signatures.length >= this.requiredSignatures) {
+        this.log(
+          `Message: ${message.senderChainHash} has reached enough signatures for ACK`,
+        );
+        const tx = await this.network.contract.receiveAck(
+          message.messageHash,
+          signatures.slice(0, this.requiredSignatures),
+        );
+        message.status = MessageStatus.ACKED;
+        message.ackHash = tx.hash;
+        await message.save();
+        this.log(`Message Acked: ${message.senderChainHash}, txid: ${tx.hash}`);
+      }
+    }
+  }
+
+  public async start() {
     const poll = async () => {
       try {
         await this.main();
+        await this.broadcastAck();
       } catch (err) {
         console.log("Error in Broadcast", err.message);
       }
-      setTimeout(poll, senderNetwork.blockTime * 1000);
+      setTimeout(poll, this.network.blockTime * 1000);
     };
 
     await poll();

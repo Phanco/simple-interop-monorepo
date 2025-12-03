@@ -1,32 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Send, Wallet, AlertCircle } from "lucide-react";
+import { Send, Wallet, AlertCircle, ArrowLeftRight } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useWeb3 } from "@/contexts/Web3Context";
 import { ethers } from "ethers";
 import {
-  getSenderChainId,
-  getReceiverChainId,
-  getSenderRpcUrl,
-  getSenderChainName
+  getOtherChainId,
+  isConfiguredChain,
+  getChainName,
+  getRpcUrl,
+  CHAIN_1_ID,
+  CHAIN_2_ID,
 } from "@/lib/contracts";
 
 const MessageForm = () => {
   const [message, setMessage] = useState("");
   const [destination, setDestination] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [destinationChainId, setDestinationChainId] = useState<number | null>(null);
 
   const router = useRouter();
   const { account, contract, connectWallet, isConnecting, chainId } = useWeb3();
 
-  const SENDER_CHAIN_ID = getSenderChainId();
-  const DESTINATION_CHAIN_ID = getReceiverChainId();
+  // Auto-calculate destination chain when wallet chain changes
+  useEffect(() => {
+    if (chainId && isConfiguredChain(chainId)) {
+      const otherChain = getOtherChainId(chainId);
+      if (otherChain) {
+        setDestinationChainId(otherChain);
+      }
+    }
+  }, [chainId]);
 
   const isValidAddress = (address: string): boolean => {
     try {
@@ -36,26 +46,27 @@ const MessageForm = () => {
     }
   };
 
-  const switchToSourceChain = async () => {
+  const switchToChain = async (targetChainId: number) => {
     if (!window.ethereum) return;
 
-    const chainIdHex = `0x${SENDER_CHAIN_ID.toString(16)}`;
+    const chainIdHex = `0x${targetChainId.toString(16)}`;
 
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: chainIdHex }],
       });
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as { code?: number };
       // Chain doesn't exist, add it
-      if (error.code === 4902) {
+      if (err.code === 4902) {
         try {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
               chainId: chainIdHex,
-              chainName: getSenderChainName(),
-              rpcUrls: [getSenderRpcUrl()],
+              chainName: getChainName(targetChainId),
+              rpcUrls: [getRpcUrl(targetChainId)],
             }],
           });
         } catch (addError) {
@@ -67,6 +78,15 @@ const MessageForm = () => {
         toast.error('Failed to switch network');
       }
     }
+  };
+
+  const handleSwapChains = async () => {
+    if (!chainId) return;
+
+    const otherChain = getOtherChainId(chainId);
+    if (!otherChain) return;
+
+    await switchToChain(otherChain);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +115,13 @@ const MessageForm = () => {
       return;
     }
 
+    if (!destinationChainId) {
+      toast.error("Destination chain not set", {
+        description: "Please connect to a supported network",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
@@ -102,7 +129,7 @@ const MessageForm = () => {
       const recipientAddress = destination || "0x0000000000000000000000000000000000000000";
 
       // Get the current nonce for this sender and destination chain
-      const currentNonce = await contract.nonces(account, DESTINATION_CHAIN_ID);
+      const currentNonce = await contract.outgoingNonces(account, destinationChainId);
 
       // Convert message to bytes
       const encoder = new TextEncoder();
@@ -111,7 +138,7 @@ const MessageForm = () => {
 
       // Call sendMessage function
       const tx = await contract.sendMessage(
-        DESTINATION_CHAIN_ID,
+        destinationChainId,
         recipientAddress,
         currentNonce,
         payloadHex
@@ -121,8 +148,8 @@ const MessageForm = () => {
         description: "Redirecting to transaction details...",
       });
 
-      // Redirect to transaction page immediately
-      router.push(`/tx/${tx.hash}`);
+      // Redirect to transaction page with source and destination info
+      router.push(`/tx/${tx.hash}?from=${chainId}&to=${destinationChainId}`);
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message", {
@@ -172,27 +199,63 @@ const MessageForm = () => {
         </div>
       )}
 
-      {account && chainId !== SENDER_CHAIN_ID && (
+      {account && chainId && !isConfiguredChain(chainId) && (
         <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive mb-2">
-                Wrong Network
+                Unsupported Network
               </p>
               <p className="text-xs text-muted-foreground mb-3">
-                Please switch to {getSenderChainName()} ({SENDER_CHAIN_ID}) to send messages
+                Please switch to one of the supported chains: {getChainName(CHAIN_1_ID)} ({CHAIN_1_ID}) or {getChainName(CHAIN_2_ID)} ({CHAIN_2_ID})
               </p>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={switchToSourceChain}
-                className="border-destructive/30 text-destructive hover:bg-destructive/10"
-              >
-                Switch to Chain {SENDER_CHAIN_ID}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => switchToChain(CHAIN_1_ID)}
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  Switch to Chain {CHAIN_1_ID}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => switchToChain(CHAIN_2_ID)}
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  Switch to Chain {CHAIN_2_ID}
+                </Button>
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {account && chainId && isConfiguredChain(chainId) && destinationChainId && (
+        <div className="mb-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                Sending from: {getChainName(chainId)} (Chain {chainId})
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                Destination: {getChainName(destinationChainId)} (Chain {destinationChainId})
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwapChains}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              Swap Chains
+            </Button>
           </div>
         </div>
       )}
@@ -232,7 +295,9 @@ const MessageForm = () => {
           <p className="text-sm text-destructive">Invalid EVM address format</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Messages will be sent to chain {DESTINATION_CHAIN_ID}. Leave empty to use address(0).
+          {destinationChainId
+            ? `Messages will be sent to chain ${destinationChainId}. Leave empty to use address(0).`
+            : "Connect to a supported network to send messages."}
         </p>
       </div>
 

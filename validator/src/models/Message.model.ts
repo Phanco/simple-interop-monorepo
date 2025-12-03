@@ -16,6 +16,11 @@ class Message extends Model {
   @Column
   declare messageId: string;
 
+  @Unique
+  @AllowNull(false)
+  @Column
+  declare messageHash: string;
+
   @ForeignKey(() => Network)
   @Column
   declare fromNetworkId: number;
@@ -55,14 +60,20 @@ class Message extends Model {
   declare signature: string;
 
   @Column
+  declare ackSignature: string;
+
+  @Column
   declare senderChainHash: string;
 
   @Column
   declare receiverChainHash: string;
 
+  @Column
+  declare ackHash: string;
+
   @AllowNull(false)
   @Column
-  // pending, signed, boardcasted, completed, cancelled
+  // pending, signed, boardcasted, completed, cancelled, received, ACKed
   declare status: number;
 }
 

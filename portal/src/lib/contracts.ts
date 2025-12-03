@@ -1,5 +1,8 @@
 // Contract configuration for MessageSender
-import { SENDER_CHAIN_ID, RECEIVER_CHAIN_ID } from "./config";
+import { CHAIN_1_ID, CHAIN_2_ID } from "./config";
+
+// Re-export chain IDs for convenience
+export { CHAIN_1_ID, CHAIN_2_ID };
 
 export const MESSAGE_SENDER_ABI = [
   {
@@ -28,14 +31,28 @@ export const MESSAGE_SENDER_ABI = [
     type: "event"
   },
   {
+    type: "function",
+    name: "outgoingNonces",
     inputs: [
-      { internalType: "address", name: "", type: "address" },
-      { internalType: "uint256", name: "", type: "uint256" }
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    name: "nonces",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
     stateMutability: "view",
-    type: "function"
   },
   {
     inputs: [],
@@ -63,10 +80,40 @@ export const RPC_URLS = {
 } as const;
 
 export const CHAIN_NAMES = {
-  31337: "Anvil Testnet (Sender)",
-  31338: "Anvil Testnet (Receiver)",
+  31337: "Anvil Testnet 1",
+  31338: "Anvil Testnet 2",
   11155111: "Sepolia Testnet",
   11155420: "OP Testnet (Sepolia)",
+} as const;
+
+export const CHAIN_SYMBOLS = {
+   31337: "1",
+   31338: "2",
+   11155111: "Sep",
+   11155420: "OP",
+} as const;
+
+export const NATIVE_CURRENCIES = {
+  31337: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  31338: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  11155111: {
+    name: "Sepolia Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  11155420: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
 } as const;
 
 export const EXPLORERS = {
@@ -92,42 +139,44 @@ export const RELAYERS = [
 ];
 
 // Helper functions to get chain-specific values
-export function getSenderChainId(): number {
-  return SENDER_CHAIN_ID;
+export function getOtherChainId(currentChainId: number): number | null {
+  if (currentChainId === CHAIN_1_ID) return CHAIN_2_ID;
+  if (currentChainId === CHAIN_2_ID) return CHAIN_1_ID;
+  return null;
 }
 
-export function getReceiverChainId(): number {
-  return RECEIVER_CHAIN_ID;
+export function isConfiguredChain(chainId: number): boolean {
+  return chainId === CHAIN_1_ID || chainId === CHAIN_2_ID;
 }
 
-export function getSenderChainName(): string {
-  return CHAIN_NAMES[SENDER_CHAIN_ID as keyof typeof CHAIN_NAMES] || "Unknown Chain";
+export function getChainName(chainId: number): string {
+  return CHAIN_NAMES[chainId as keyof typeof CHAIN_NAMES] || "Unknown Chain";
 }
 
-export function getReceiverChainName(): string {
-  return CHAIN_NAMES[RECEIVER_CHAIN_ID as keyof typeof CHAIN_NAMES] || "Unknown Chain";
+export function getRpcUrl(chainId: number): string {
+  return RPC_URLS[chainId as keyof typeof RPC_URLS] || "";
 }
 
-export function getSenderRpcUrl(): string {
-  return RPC_URLS[SENDER_CHAIN_ID as keyof typeof RPC_URLS] || "";
+export function getExplorer(chainId: number): string {
+  return EXPLORERS[chainId as keyof typeof EXPLORERS] || "";
 }
 
-export function getReceiverRpcUrl(): string {
-  return RPC_URLS[RECEIVER_CHAIN_ID as keyof typeof RPC_URLS] || "";
+export function getContractAddress(chainId: number): string {
+  return CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES] || "";
 }
 
-export function getSenderExplorer(): string {
-  return EXPLORERS[SENDER_CHAIN_ID as keyof typeof EXPLORERS] || "";
+export function getConfiguredChainIds(): [number, number] {
+  return [CHAIN_1_ID, CHAIN_2_ID];
 }
 
-export function getReceiverExplorer(): string {
-  return EXPLORERS[RECEIVER_CHAIN_ID as keyof typeof EXPLORERS] || "";
+export function getChainSymbol(chainId: number): string {
+  return CHAIN_SYMBOLS[chainId as keyof typeof CHAIN_SYMBOLS] || "?";
 }
 
-export function getSenderContractAddress(): string {
-  return CONTRACT_ADDRESSES[SENDER_CHAIN_ID as keyof typeof CONTRACT_ADDRESSES] || "";
-}
-
-export function getReceiverContractAddress(): string {
-  return CONTRACT_ADDRESSES[RECEIVER_CHAIN_ID as keyof typeof CONTRACT_ADDRESSES] || "";
+export function getNativeCurrency(chainId: number) {
+  return NATIVE_CURRENCIES[chainId as keyof typeof NATIVE_CURRENCIES] || {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  };
 }

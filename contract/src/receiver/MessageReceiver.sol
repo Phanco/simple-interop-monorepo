@@ -61,6 +61,9 @@ contract MessageReceiver is Ownable {
     /// @dev Maps sourceChainId => sender => expected nonce. Ensures message ordering and replay protection
     mapping(uint256 => mapping(address => uint256)) public processedMessageNonces;
 
+    /// Message Hash => ACKed
+    mapping(bytes32 => bool) public ackHashes;
+
     /**
      * @notice Restricts function access to registered relayers only
      * @param relayer The address to verify as a relayer
@@ -154,6 +157,38 @@ contract MessageReceiver is Ownable {
         );
 
         emit MessageReceived(sourceChainId, nonce, sender, recipient, payload);
+    }
+
+    function receiveAck(bytes32 messageHash, bytes[] calldata signatures) external {
+        require(!ackHashes[messageHash], AckAlreadyProcessed());
+
+        uint256 validSignatures;
+        uint256 seenRelayers; // Bitmask to track which relayers have signed
+
+        // Verify signatures and check for duplicates
+        for (uint256 i; i < signatures.length;) {
+            // Recover the signer address from the signature
+            address recoveredSigner = ECDSA.recover(messageHash, signatures[i]);
+            // forge-lint: disable-next-line
+            // Create a bitmask for this relayer's index
+            uint256 relayerBit = 1 << getRelayerIndex(recoveredSigner);
+            // Ensure this relayer hasn't already signed (prevent duplicate signatures)
+            require(seenRelayers & relayerBit == 0, DuplicateSignature());
+
+            // Mark this relayer as having signed
+            seenRelayers |= relayerBit;
+
+            unchecked {
+                validSignatures++;
+                i++;
+            }
+        }
+
+        // Verify we have reached the consensus threshold
+        require(validSignatures >= CONSENSUS_THRESHOLD, "Insufficient Relayers");
+
+        ackHashes[messageHash] = true;
+        emit AckReceived(messageHash);
     }
 
     /**
@@ -256,6 +291,8 @@ contract MessageReceiver is Ownable {
         uint256 indexed sourceChainId, uint256 indexed nonce, address indexed sender, address recipient, bytes payload
     );
 
+    event AckReceived(bytes32 messageHash);
+
     /**
      * @notice Emitted when a relayer is successfully replaced
      * @param oldRelayer The address of the relayer that was removed
@@ -265,6 +302,8 @@ contract MessageReceiver is Ownable {
 
     /// @notice Thrown when attempting to process a message with an invalid nonce
     error MessageAlreadyProcessed();
+
+    error AckAlreadyProcessed();
 
     /// @notice Thrown when a non-owner or non-relayer attempts a restricted operation
     error Unauthorized();

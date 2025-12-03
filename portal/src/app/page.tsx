@@ -1,13 +1,59 @@
+"use client";
+
+import { useWeb3 } from "@/contexts/Web3Context";
 import ChainDisplay from "@/components/ChainDisplay";
 import MessageForm from "@/components/MessageForm";
 import {
-  getSenderChainId,
-  getReceiverChainId,
-  getSenderChainName,
-  getReceiverChainName,
+  getOtherChainId,
+  isConfiguredChain,
+  getChainName,
+  getRpcUrl,
+  CHAIN_1_ID,
+  CHAIN_2_ID,
 } from "@/lib/contracts";
+import { toast } from "@/components/ui/sonner";
 
 export default function Home() {
+  const { chainId } = useWeb3();
+
+  // Determine source and destination based on connected chain
+  const sourceChainId = chainId && isConfiguredChain(chainId) ? chainId : CHAIN_1_ID;
+  const destinationChainId = getOtherChainId(sourceChainId) || CHAIN_2_ID;
+
+  const handleSwapChains = async () => {
+    if (!window.ethereum) {
+      toast.error("MetaMask not detected");
+      return;
+    }
+
+    const targetChainId = destinationChainId;
+    const chainIdHex = `0x${targetChainId.toString(16)}`;
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: chainIdHex }],
+      });
+    } catch (error) {
+      const err = error as { code?: number };
+      if (err.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: chainIdHex,
+              chainName: getChainName(targetChainId),
+              rpcUrls: [getRpcUrl(targetChainId)],
+            }],
+          });
+        } catch {
+          toast.error('Failed to add network');
+        }
+      } else {
+        toast.error('Failed to switch network');
+      }
+    }
+  };
   return (
     <div className="min-h-screen gradient-hero">
       {/* Hero Section */}
@@ -23,10 +69,12 @@ export default function Home() {
 
         {/* Chain Display */}
         <ChainDisplay
-          sourceChain={getSenderChainName()}
-          destinationChain={getReceiverChainName()}
-          sourceChainId={getSenderChainId()}
-          destinationChainId={getReceiverChainId()}
+          sourceChain={getChainName(sourceChainId)}
+          destinationChain={getChainName(destinationChainId)}
+          sourceChainId={sourceChainId}
+          destinationChainId={destinationChainId}
+          onSwap={handleSwapChains}
+          canSwap={chainId !== null && isConfiguredChain(chainId)}
         />
 
         {/* Message Form Card */}

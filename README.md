@@ -179,7 +179,7 @@ Removal of Docker data could fail in Linux environment, if so you can run `sudo 
 My ideal chain-crossing messaging protocol would have the following features:
 1. Oracle-Based Verification (Like lz)
 2. Adjustable Verifiers (Increase/Decrease number of validators)
-3. 2-way Interopability/Multi-Chain Support
+3. 2-way Interoperability/Multi-Chain Support
 4. Contract Calling instead of sending string message
 5. Robust event listening (e.g. Using Subgraph)
 6. Better Indexing of DB
