@@ -169,7 +169,10 @@ class Broadcaster {
         this.log(
           `Message: ${message.senderChainHash} has reached enough signatures for ACK`,
         );
-        const tx = await this.network.contract.receiveAck(
+        const senderNetwork = this.networkControl.supportedNetworks.find(
+          (network) => network.chainId === message.fromNetworkId,
+        );
+        const tx = await senderNetwork.contract.receiveAck(
           message.messageHash,
           signatures.slice(0, this.requiredSignatures),
         );
