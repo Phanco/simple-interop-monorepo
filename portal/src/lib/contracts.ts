@@ -126,15 +126,15 @@ export const EXPLORERS = {
 export const RELAYERS = [
   {
     name: "Melchior-0",
-    rpc: "https://interop0.fran.co",
+    rpc: "https://relayer0.fran.co",
   },
   {
     name: "Balthasar-1",
-    rpc: "https://interop1.fran.co",
+    rpc: "https://relayer1.fran.co",
   },
   {
     name: "Casper-2",
-    rpc: "https://interop2.fran.co",
+    rpc: "https://relayer2.fran.co",
   },
 ];
 
